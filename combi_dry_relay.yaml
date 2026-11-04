@@ -1,0 +1,239 @@
+blueprint:
+  name: Combi dry relay — circuit interlock
+  description: >
+    Включает сухое реле комби только если открыт хотя бы один контур.
+    Для каждого контура укажите сущность (сервопривод / позиция TRV / climate)
+    и задержку открытия в секундах (0 для радиаторов, 120 для тёплого пола).
+    Автоматизация сама отсчитывает время с момента открытия (last_changed).
+    Срабатывает при открытии/закрытии контура и периодически для истечения задержки.
+  domain: automation
+  source_url: https://github.com/faganchalabizada/smarthome_combi_dry_relay/blob/main/combi_dry_relay.yaml
+  input:
+    dry_relay:
+      name: Сухое реле комби
+      description: Реле зимнего режима / dry contact котла
+      selector:
+        entity:
+          domain: switch
+
+    circuit_1:
+      name: Контур 1 — сущность
+      description: switch (серво), sensor (позиция TRV) или climate (hvac_action)
+      default:
+      selector:
+        entity:
+          domain:
+            - switch
+            - sensor
+            - climate
+    circuit_1_delay:
+      name: Контур 1 — задержка открытия (сек)
+      description: 0 = сразу (радиатор). 120 = типичный сервопривод ТП
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 600
+          step: 10
+          unit_of_measurement: sec
+          mode: box
+
+    circuit_2:
+      name: Контур 2 — сущность
+      default:
+      selector:
+        entity:
+          domain:
+            - switch
+            - sensor
+            - climate
+    circuit_2_delay:
+      name: Контур 2 — задержка открытия (сек)
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 600
+          step: 10
+          unit_of_measurement: sec
+          mode: box
+
+    circuit_3:
+      name: Контур 3 — сущность
+      default:
+      selector:
+        entity:
+          domain:
+            - switch
+            - sensor
+            - climate
+    circuit_3_delay:
+      name: Контур 3 — задержка открытия (сек)
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 600
+          step: 10
+          unit_of_measurement: sec
+          mode: box
+
+    circuit_4:
+      name: Контур 4 — сущность
+      default:
+      selector:
+        entity:
+          domain:
+            - switch
+            - sensor
+            - climate
+    circuit_4_delay:
+      name: Контур 4 — задержка открытия (сек)
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 600
+          step: 10
+          unit_of_measurement: sec
+          mode: box
+
+    circuit_5:
+      name: Контур 5 — сущность
+      default:
+      selector:
+        entity:
+          domain:
+            - switch
+            - sensor
+            - climate
+    circuit_5_delay:
+      name: Контур 5 — задержка открытия (сек)
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 600
+          step: 10
+          unit_of_measurement: sec
+          mode: box
+
+    circuit_6:
+      name: Контур 6 — сущность
+      default:
+      selector:
+        entity:
+          domain:
+            - switch
+            - sensor
+            - climate
+    circuit_6_delay:
+      name: Контур 6 — задержка открытия (сек)
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 600
+          step: 10
+          unit_of_measurement: sec
+          mode: box
+
+    poll_seconds:
+      name: Период проверки задержки
+      description: Как часто пересчитывать истёкшие задержки сервоприводов
+      default: 30
+      selector:
+        number:
+          min: 10
+          max: 120
+          step: 10
+          unit_of_measurement: sec
+          mode: box
+
+trigger:
+  - platform: state
+    entity_id: !input circuit_1
+  - platform: state
+    entity_id: !input circuit_2
+  - platform: state
+    entity_id: !input circuit_3
+  - platform: state
+    entity_id: !input circuit_4
+  - platform: state
+    entity_id: !input circuit_5
+  - platform: state
+    entity_id: !input circuit_6
+  - platform: state
+    entity_id: !input dry_relay
+  - platform: homeassistant
+    event: start
+  - platform: time_pattern
+    seconds: "/30"
+
+variables:
+  dry_relay_entity: !input dry_relay
+  c1: !input circuit_1
+  d1: !input circuit_1_delay
+  c2: !input circuit_2
+  d2: !input circuit_2_delay
+  c3: !input circuit_3
+  d3: !input circuit_3_delay
+  c4: !input circuit_4
+  d4: !input circuit_4_delay
+  c5: !input circuit_5
+  d5: !input circuit_5_delay
+  c6: !input circuit_6
+  d6: !input circuit_6_delay
+  any_circuit_open: >-
+    {% set ns = namespace(open=false) %}
+    {% set circuits = [
+      {'e': c1, 'd': d1 | int(0)},
+      {'e': c2, 'd': d2 | int(0)},
+      {'e': c3, 'd': d3 | int(0)},
+      {'e': c4, 'd': d4 | int(0)},
+      {'e': c5, 'd': d5 | int(0)},
+      {'e': c6, 'd': d6 | int(0)},
+    ] %}
+    {% for item in circuits %}
+      {% set e = item.e %}
+      {% if e %}
+        {% set domain = e.split('.')[0] %}
+        {% set commanded = false %}
+        {% if domain == 'switch' %}
+          {% set commanded = is_state(e, 'on') %}
+        {% elif domain == 'sensor' %}
+          {% set commanded = states(e) not in ['unknown', 'unavailable', 'none', ''] and (states(e) | float(0)) > 0 %}
+        {% elif domain == 'climate' %}
+          {% set commanded = is_state_attr(e, 'hvac_action', 'heating') %}
+        {% endif %}
+        {% if commanded %}
+          {% set age = as_timestamp(now()) - as_timestamp(states[e].last_changed, default=as_timestamp(now())) %}
+          {% if age >= item.d %}
+            {% set ns.open = true %}
+          {% endif %}
+        {% endif %}
+      {% endif %}
+    {% endfor %}
+    {{ ns.open }}
+
+condition: []
+
+action:
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ any_circuit_open and not is_state(dry_relay_entity, 'on') }}"
+        sequence:
+          - action: switch.turn_on
+            target:
+              entity_id: "{{ dry_relay_entity }}"
+      - conditions:
+          - condition: template
+            value_template: "{{ (not any_circuit_open) and not is_state(dry_relay_entity, 'off') }}"
+        sequence:
+          - action: switch.turn_off
+            target:
+              entity_id: "{{ dry_relay_entity }}"
+
+mode: queued
+max: 10
