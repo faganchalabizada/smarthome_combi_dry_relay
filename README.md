@@ -18,6 +18,7 @@ Then **Create automation** from this blueprint.
 2. **Контуры без задержки** — radiator TRV position sensors / climates (open immediately)  
 3. **Контуры с задержкой** — underfloor servo switches  
 4. **Задержка открытия** — seconds after servo `on` before the circuit counts as open (default **120**). The automation **counts this time itself** via `last_changed`.
+5. **Контакт реле (NO / NC)** — `NC` = direct (`switch` ON when boiler should heat); `NO` = inverted (`switch` OFF when boiler should heat). Use **NO** if the module is wired to the NO terminal and heat was reversed.
 
 ## Logic
 
@@ -39,4 +40,4 @@ Then **Create automation** from this blueprint.
 | --- | --- | --- |
 | Immediate | `sensor.radiator_gostinoi_position`, `sensor.termostat_radiator_spalni_position`, `sensor.termostat_radiatora_ofis_position` | — |
 | Delayed | `switch.servoprivod`, `switch.servoprivody_l1`, `switch.servoprivody_l2` | 120 s |
-| Dry relay | `switch.0xa4c13821f907c705` | — |
+| Dry relay | `switch.0xa4c13821f907c705` | contact **NO** |

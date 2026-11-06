@@ -7,6 +7,9 @@ blueprint:
     • Тёплый пол — сервоприводы + задержка (сек); время отсчитывается само
       с момента включения серво (last_changed).
 
+    Контакт реле: NC — прямая логика (switch ON = котёл греет);
+    NO — инверсия (switch OFF = котёл греет), если проводка на NO и всё было наоборот.
+
     Срабатывает при открытии/закрытии контура и по таймеру, пока идёт задержка.
   domain: automation
   source_url: https://github.com/faganchalabizada/smarthome_combi_dry_relay/blob/main/combi_dry_relay.yaml
@@ -17,6 +20,21 @@ blueprint:
       selector:
         entity:
           domain: switch
+
+    contact_type:
+      name: Контакт реле (NO / NC)
+      description: >
+        NC — прямая: нужны контуры → включаем switch.
+        NO — инверсия: нужны контуры → выключаем switch (если подключили на NO и работало наоборот).
+      default: nc
+      selector:
+        select:
+          options:
+            - label: NC (прямая: ON = греть)
+              value: nc
+            - label: NO (инверсия: OFF = греть)
+              value: no
+          mode: dropdown
 
     immediate_circuits:
       name: Контуры без задержки (радиаторы)
@@ -69,6 +87,7 @@ trigger:
 
 variables:
   dry_relay_entity: !input dry_relay
+  contact: !input contact_type
   immediate: !input immediate_circuits
   delayed: !input delayed_circuits
   delay_sec: !input open_delay
@@ -92,6 +111,16 @@ variables:
       {% endif %}
     {% endfor %}
     {{ ns.open }}
+  # want_heat: котлу нужен сухой контакт «греть»
+  # NC: катушка ON замыкает цепь нагрева → target switch on
+  # NO: катушка ON размыкает/инвертирует → target switch off when heating
+  relay_should_be_on: >-
+    {% set want_heat = any_circuit_open %}
+    {% if contact == 'no' %}
+      {{ not want_heat }}
+    {% else %}
+      {{ want_heat }}
+    {% endif %}
 
 condition: []
 
@@ -99,14 +128,14 @@ action:
   - choose:
       - conditions:
           - condition: template
-            value_template: "{{ any_circuit_open and not is_state(dry_relay_entity, 'on') }}"
+            value_template: "{{ relay_should_be_on and not is_state(dry_relay_entity, 'on') }}"
         sequence:
           - action: switch.turn_on
             target:
               entity_id: "{{ dry_relay_entity }}"
       - conditions:
           - condition: template
-            value_template: "{{ (not any_circuit_open) and not is_state(dry_relay_entity, 'off') }}"
+            value_template: "{{ (not relay_should_be_on) and not is_state(dry_relay_entity, 'off') }}"
         sequence:
           - action: switch.turn_off
             target:
