@@ -26,14 +26,14 @@ blueprint:
       description: >
         NC — прямая: нужны контуры → включаем switch.
         NO — инверсия: нужны контуры → выключаем switch (если подключили на NO и работало наоборот).
-      default: nc
+      default: "nc"
       selector:
         select:
           options:
             - label: "NC (прямая, ON = греть)"
-              value: nc
+              value: "nc"
             - label: "NO (инверсия, OFF = греть)"
-              value: no
+              value: "no"
           mode: dropdown
 
     immediate_circuits:
