@@ -30,9 +30,9 @@ blueprint:
       selector:
         select:
           options:
-            - label: NC (прямая: ON = греть)
+            - label: "NC (прямая, ON = греть)"
               value: nc
-            - label: NO (инверсия: OFF = греть)
+            - label: "NO (инверсия, OFF = греть)"
               value: no
           mode: dropdown
 
